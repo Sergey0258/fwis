@@ -1,0 +1,444 @@
+using System;
+using System.Collections.Generic;
+
+namespace FileSystemExample
+{
+
+    public interface IFileSystemComponent
+    {
+        void Accept(IVisitor visitor);
+        void Add(IFileSystemComponent component);
+        void Remove(IFileSystemComponent component);
+        IFileSystemComponent GetChild(int index);
+        string Name { get; }
+    }
+
+    public class File : IFileSystemComponent
+    {
+        public string Name { get; private set; }
+        public string Content { get; private set; }
+
+        public File(string name, string content = "")
+        {
+            Name = name;
+            Content = content;
+        }
+
+        public void Accept(IVisitor visitor)
+        {
+            visitor.Visit(this);
+        }
+
+        public void Add(IFileSystemComponent component)
+        {
+            throw new InvalidOperationException("Cannot add to a file.");
+        }
+
+        public void Remove(IFileSystemComponent component)
+        {
+            throw new InvalidOperationException("Cannot remove from a file.");
+        }
+
+        public IFileSystemComponent GetChild(int index)
+        {
+            throw new InvalidOperationException("No children in a file.");
+        }
+
+        public void Rename(string newName)
+        {
+            Name = newName;
+        }
+
+        public void UpdateContent(string newContent)
+        {
+            Content = newContent;
+        }
+    }
+
+    public class Directory : IFileSystemComponent
+    {
+        private readonly List<IFileSystemComponent> _components = new List<IFileSystemComponent>();
+        public string Name { get; private set; }
+
+        public Directory(string name)
+        {
+            Name = name;
+        }
+
+        public void Accept(IVisitor visitor)
+        {
+            visitor.Visit(this);
+            foreach (var component in _components)
+            {
+                component.Accept(visitor);
+            }
+        }
+
+        public void Add(IFileSystemComponent component)
+        {
+            _components.Add(component);
+        }
+
+        public void Remove(IFileSystemComponent component)
+        {
+            _components.Remove(component);
+        }
+
+        public IFileSystemComponent GetChild(int index)
+        {
+            return _components[index];
+        }
+
+        public int GetChildCount()
+        {
+            return _components.Count;
+        }
+
+        public List<IFileSystemComponent> GetChildren()
+        {
+            return _components;
+        }
+
+        public void Rename(string newName)
+        {
+            Name = newName;
+        }
+    }
+
+    public interface IVisitor
+    {
+        void Visit(File file);
+        void Visit(Directory directory);
+    }
+
+    public class SizeVisitor : IVisitor
+    {
+        private int _totalSize;
+
+        public int TotalSize => _totalSize;
+
+        public void Visit(File file)
+        {
+            _totalSize += file.Content.Length;
+        }
+
+        public void Visit(Directory directory)
+        {
+        }
+    }
+
+    public class SearchVisitor : IVisitor
+    {
+        private readonly string _nameToFind;
+        private IFileSystemComponent _foundComponent;
+
+        public SearchVisitor(string nameToFind)
+        {
+            _nameToFind = nameToFind;
+        }
+
+        public IFileSystemComponent FoundComponent => _foundComponent;
+
+        public void Visit(File file)
+        {
+            if (file.Name == _nameToFind)
+            {
+                _foundComponent = file;
+            }
+        }
+
+        public void Visit(Directory directory)
+        {
+            if (directory.Name == _nameToFind)
+            {
+                _foundComponent = directory;
+            }
+        }
+    }
+
+    public interface IIterator
+    {
+        bool HasNext();
+        IFileSystemComponent Next();
+    }
+
+    public class FileSystemIterator : IIterator
+    {
+        private readonly Stack<IFileSystemComponent> _stack = new Stack<IFileSystemComponent>();
+
+        public FileSystemIterator(IFileSystemComponent root)
+        {
+            _stack.Push(root);
+        }
+
+        public bool HasNext()
+        {
+            return _stack.Count > 0;
+        }
+
+        public IFileSystemComponent Next()
+        {
+            if (!HasNext())
+            {
+                throw new InvalidOperationException("No more elements.");
+            }
+
+            var component = _stack.Pop();
+            if (component is Directory directory)
+            {
+                for (int i = directory.GetChildCount() - 1; i >= 0; i--)
+                {
+                    _stack.Push(directory.GetChild(i));
+                }
+            }
+
+            return component;
+        }
+    }
+
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var root = new Directory("root");
+            ManageFileSystem(root);
+        }
+
+        static void ManageFileSystem(Directory root)
+        {
+            while (true)
+            {
+                Console.WriteLine("\nFile System Management");
+                Console.WriteLine("1. Add File");
+                Console.WriteLine("2. Add Directory");
+                Console.WriteLine("3. Remove Component");
+                Console.WriteLine("4. Rename Component");
+                Console.WriteLine("5. Update File Content");
+                Console.WriteLine("6. Calculate Total Size");
+                Console.WriteLine("7. Search for a Component");
+                Console.WriteLine("8. List All Components");
+                Console.WriteLine("9. Exit");
+                Console.Write("Choose an option: ");
+
+                var choice = Console.ReadLine();
+                switch (choice)
+                {
+                    case "1":
+                        AddFile(root);
+                        break;
+                    case "2":
+                        AddDirectory(root);
+                        break;
+                    case "3":
+                        RemoveComponent(root);
+                        break;
+                    case "4":
+                        RenameComponent(root);
+                        break;
+                    case "5":
+                        UpdateFileContent(root);
+                        break;
+                    case "6":
+                        CalculateTotalSize(root);
+                        break;
+                    case "7":
+                        SearchForComponent(root);
+                        break;
+                    case "8":
+                        ListAllComponents(root);
+                        break;
+                    case "9":
+                        return;
+                    default:
+                        Console.WriteLine("Invalid choice. Please try again.");
+                        break;
+                }
+            }
+        }
+
+        static void AddFile(Directory root)
+        {
+            Console.Write("Enter the directory path (use / as separator): ");
+            var path = Console.ReadLine();
+            var directory = GetDirectoryByPath(root, path);
+            if (directory == null)
+            {
+                Console.WriteLine("Directory not found.");
+                return;
+            }
+
+            Console.Write("Enter file name: ");
+            var fileName = Console.ReadLine();
+            Console.Write("Enter file content: ");
+            var content = Console.ReadLine();
+
+            var file = new File(fileName, content);
+            directory.Add(file);
+            Console.WriteLine("File added successfully.");
+        }
+
+        static void AddDirectory(Directory root)
+        {
+            Console.Write("Enter the directory path (use / as separator): ");
+            var path = Console.ReadLine();
+            var directory = GetDirectoryByPath(root, path);
+            if (directory == null)
+            {
+                Console.WriteLine("Directory not found.");
+                return;
+            }
+
+            Console.Write("Enter directory name: ");
+            var dirName = Console.ReadLine();
+            var newDirectory = new Directory(dirName);
+            directory.Add(newDirectory);
+            Console.WriteLine("Directory added successfully.");
+        }
+
+        static void RemoveComponent(Directory root)
+        {
+            Console.Write("Enter the directory path (use / as separator): ");
+            var path = Console.ReadLine();
+            var directory = GetDirectoryByPath(root, path);
+            if (directory == null)
+            {
+                Console.WriteLine("Directory not found.");
+                return;
+            }
+
+            Console.Write("Enter the name of the component to remove: ");
+            var name = Console.ReadLine();
+            var component = FindComponentByName(directory, name);
+            if (component == null)
+            {
+                Console.WriteLine("Component not found.");
+                return;
+            }
+
+            directory.Remove(component);
+            Console.WriteLine("Component removed successfully.");
+        }
+
+        static void RenameComponent(Directory root)
+        {
+            Console.Write("Enter the directory path (use / as separator): ");
+            var path = Console.ReadLine();
+            var directory = GetDirectoryByPath(root, path);
+            if (directory == null)
+            {
+                Console.WriteLine("Directory not found.");
+                return;
+            }
+
+            Console.Write("Enter the name of the component to rename: ");
+            var name = Console.ReadLine();
+            var component = FindComponentByName(directory, name);
+            if (component == null)
+            {
+                Console.WriteLine("Component not found.");
+                return;
+            }
+
+            Console.Write("Enter the new name: ");
+            var newName = Console.ReadLine();
+            if (component is File file)
+            {
+                file.Rename(newName);
+            }
+            else if (component is Directory dir)
+            {
+                dir.Rename(newName);
+            }
+            Console.WriteLine("Component renamed successfully.");
+        }
+
+        static void UpdateFileContent(Directory root)
+        {
+            Console.Write("Enter the directory path (use / as separator): ");
+            var path = Console.ReadLine();
+            var directory = GetDirectoryByPath(root, path);
+            if (directory == null)
+            {
+                Console.WriteLine("Directory not found.");
+                return;
+            }
+
+            Console.Write("Enter the name of the file to update: ");
+            var name = Console.ReadLine();
+            var component = FindComponentByName(directory, name);
+            if (component == null || !(component is File file))
+            {
+                Console.WriteLine("File not found.");
+                return;
+            }
+
+            Console.Write("Enter the new content: ");
+            var newContent = Console.ReadLine();
+            file.UpdateContent(newContent);
+            Console.WriteLine("File content updated successfully.");
+        }
+
+        static void CalculateTotalSize(Directory root)
+        {
+            var sizeVisitor = new SizeVisitor();
+            root.Accept(sizeVisitor);
+            Console.WriteLine($"Total size: {sizeVisitor.TotalSize}");
+        }
+
+        static void SearchForComponent(Directory root)
+        {
+            Console.Write("Enter the name of the component to search for: ");
+            var name = Console.ReadLine();
+            var searchVisitor = new SearchVisitor(name);
+            root.Accept(searchVisitor);
+            var found = searchVisitor.FoundComponent;
+            Console.WriteLine($"Found: {found?.Name}");
+        }
+
+        static void ListAllComponents(Directory root)
+        {
+            var iterator = new FileSystemIterator(root);
+            while (iterator.HasNext())
+            {
+                var component = iterator.Next();
+                Console.WriteLine(component.Name);
+            }
+        }
+
+        static Directory GetDirectoryByPath(Directory root, string path)
+        {
+            if (string.IsNullOrEmpty(path) || path == "/")
+                return root;
+
+            var parts = path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            var current = root;
+            foreach (var part in parts)
+            {
+                var found = false;
+                for (int i = 0; i < current.GetChildCount(); i++)
+                {
+                    var child = current.GetChild(i);
+                    if (child is Directory dir && dir.Name == part)
+                    {
+                        current = dir;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    return null;
+            }
+            return current;
+        }
+
+        static IFileSystemComponent FindComponentByName(Directory directory, string name)
+        {
+            foreach (var component in directory.GetChildren())
+            {
+                if (component.Name == name)
+                    return component;
+            }
+            return null;
+        }
+    }
+}
