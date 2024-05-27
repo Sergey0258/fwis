@@ -1,0 +1,87 @@
+IFileSystemComponent (інтерфейс)
+
+Методи:
+void Accept(IVisitor visitor)
+void Add(IFileSystemComponent component)
+void Remove(IFileSystemComponent component)
+IFileSystemComponent GetChild(int index)
+string Name { get; }
+File (реалізує IFileSystemComponent)
+
+Властивості:
+string Name { get; private set; }
+string Content { get; private set; }
+Конструктор:
+File(string name, string content = "")
+Методи:
+void Accept(IVisitor visitor)
+void Add(IFileSystemComponent component)
+void Remove(IFileSystemComponent component)
+IFileSystemComponent GetChild(int index)
+void Rename(string newName)
+void UpdateContent(string newContent)
+Directory (реалізує IFileSystemComponent)
+
+Властивості:
+string Name { get; private set; }
+List<IFileSystemComponent> _components
+Конструктор:
+Directory(string name)
+Методи:
+void Accept(IVisitor visitor)
+void Add(IFileSystemComponent component)
+void Remove(IFileSystemComponent component)
+IFileSystemComponent GetChild(int index)
+int GetChildCount()
+List<IFileSystemComponent> GetChildren()
+void Rename(string newName)
+IVisitor (інтерфейс)
+
+Методи:
+void Visit(File file)
+void Visit(Directory directory)
+SizeVisitor (реалізує IVisitor)
+
+Властивості:
+int TotalSize { get; }
+Методи:
+void Visit(File file)
+void Visit(Directory directory)
+SearchVisitor (реалізує IVisitor)
+
+Властивості:
+IFileSystemComponent FoundComponent { get; }
+Конструктор:
+SearchVisitor(string nameToFind)
+Методи:
+void Visit(File file)
+void Visit(Directory directory)
+IIterator (інтерфейс)
+
+Методи:
+bool HasNext()
+IFileSystemComponent Next()
+FileSystemIterator (реалізує IIterator)
+
+Властивості:
+Stack<IFileSystemComponent> _stack
+Конструктор:
+FileSystemIterator(IFileSystemComponent root)
+Методи:
+bool HasNext()
+IFileSystemComponent Next()
+Program (клас)
+
+Статичні методи:
+static void Main(string[] args)
+static void ManageFileSystem(Directory root)
+static void AddFile(Directory root)
+static void AddDirectory(Directory root)
+static void RemoveComponent(Directory root)
+static void RenameComponent(Directory root)
+static void UpdateFileContent(Directory root)
+static void CalculateTotalSize(Directory root)
+static void SearchForComponent(Directory root)
+static void ListAllComponents(Directory root)
+static Directory GetDirectoryByPath(Directory root, string path)
+static IFileSystemComponent FindComponentByName(Directory directory, string name)
